@@ -7,40 +7,61 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 
 Write-Host "Starting PHPShift Automation Setup..." -ForegroundColor Cyan
 
+# 1. Install Chocolatey if not present
+Write-Host "Checking Chocolatey..." -ForegroundColor Cyan
+if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
+    Write-Host "   -> Installing Chocolatey..." -ForegroundColor Yellow
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    Write-Host "   -> Chocolatey installed." -ForegroundColor Green
+} else {
+    Write-Host "   -> Chocolatey is already installed." -ForegroundColor Green
+}
+
+# Refresh PATH to include Chocolatey
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 Function Install-Software {
-    param([string]$id, [string]$name, [string]$version = "")
+    param([string]$package, [string]$name)
     Write-Host "Checking $name..."
-    $check = winget list --id $id --exact 2>$null
-    if ($check -match $id) {
+    
+    # Check if already installed
+    $check = choco list --local-only 2>$null | Select-String $package
+    if ($check) {
         Write-Host "   -> $name is already installed." -ForegroundColor Green
     } else {
         Write-Host "   -> Installing $name..." -ForegroundColor Yellow
-        $versionParam = if ($version) { "--version $version" } else { "" }
-        Invoke-Expression "winget install --id $id --exact --silent --accept-package-agreements --accept-source-agreements $versionParam"
+        choco install $package -y --no-progress 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "   -> $name installed successfully." -ForegroundColor Green
+        } else {
+            Write-Host "   -> Failed to install $name via Chocolatey." -ForegroundColor Yellow
+        }
     }
 }
 
-# 1. Install System Requirements
-Install-Software -id "Python.Python.3.11" -name "Python & PIP"
-Install-Software -id "ApacheFriends.Xampp.8.1" -name "XAMPP (PHP 8.1)" -version "8.1.25"
-Install-Software -id "getcomposer.Composer" -name "Composer"
-Install-Software -id "Git.Git" -name "Git"
-Install-Software -id "Microsoft.VisualStudioCode" -name "VS Code"
+# 2. Install System Requirements
+Install-Software -package "python311" -name "Python 3.11"
+Install-Software -package "xampp-81" -name "XAMPP (PHP 8.1)"
+Install-Software -package "composer" -name "Composer"
+Install-Software -package "git" -name "Git"
+Install-Software -package "vscode" -name "VS Code"
 
-# 2. Force Environment PATH Refresh
+# 3. Force Environment PATH Refresh
 Write-Host "Refreshing Environment Variables..." -ForegroundColor Cyan
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
-# 3. Install Python Modules
+# 4. Install Python Modules
 Write-Host "Installing required Python modules..." -ForegroundColor Cyan
 try {
+    pip install --upgrade pip
     pip install phpshift
     Write-Host "   -> Python modules installed." -ForegroundColor Green
 } catch {
-    Write-Warning "   -> PIP might not be in PATH yet. Restart your terminal later."
+    Write-Warning "   -> Failed to install Python modules. Make sure Python is properly installed."
 }
 
-# 4. Decode and Import VS Code Profile
+# 5. Decode and Import VS Code Profile
 Write-Host "Applying VS Code Profile..." -ForegroundColor Cyan
 
 # The builder script will automatically inject the base64 string here
