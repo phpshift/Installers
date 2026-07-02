@@ -1,0 +1,63 @@
+name: Build Windows EXE
+
+# Triggers for the action
+on:
+  push:
+    branches:
+      - main
+    # Optional: Only trigger when files in the Windows folder are changed
+    paths:
+      - "Windows/**"
+  # This adds the manual execution button in the Actions tab
+  workflow_dispatch:
+
+# Grant the Action permission to push the .exe back to the repository
+permissions:
+  contents: write
+
+jobs:
+  build-and-push:
+    # Use a Windows server to run PowerShell natively
+    runs-on: windows-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Install ps2exe Compiler
+        shell: powershell
+        # -Force and -AcceptLicense are required in CI/CD to bypass "Press Y to continue" prompts
+        run: |
+          Install-Module -Name ps2exe -Scope CurrentUser -Force -AcceptLicense
+
+      - name: 🔨 Build Executable
+        shell: powershell
+        working-directory: ./Windows
+        run: |
+          # Set execution policy (-Force to bypass prompt) and compile
+          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+          .\compile.ps1
+
+      - name: 🚀 Commit and Push Changes
+        shell: powershell
+        run: |
+          # 1. Authenticate as the GitHub Actions Bot
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 2. Stage the newly built executable
+          git add ./Windows/phpshift-v1.0.0.exe
+
+          # 3. Check if the file actually changed to avoid a pipeline error
+          if (git status --porcelain "./Windows/phpshift-v1.0.0.exe") {
+              # Get today's date in yyyy-mm-dd format
+              $date = Get-Date -Format "yyyy-MM-dd"
+              
+              # Commit and push
+              git commit -m "+ update $date"
+              git push
+              
+              Write-Host "Changes pushed successfully!" -ForegroundColor Green
+          } else {
+              Write-Host "No changes detected in the .exe file. Skipping commit." -ForegroundColor Yellow
+          }
