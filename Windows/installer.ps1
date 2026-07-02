@@ -34,7 +34,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 # 3. Install Python Modules
 Write-Host "Installing required Python modules..." -ForegroundColor Cyan
 try {
-    pip install clight gits
+    pip install phpshift
     Write-Host "   -> Python modules installed." -ForegroundColor Green
 } catch {
     Write-Warning "   -> PIP might not be in PATH yet. Restart your terminal later."
