@@ -7,12 +7,30 @@ param(
 $ConfirmPreference = 'None'
 $ProgressPreference = 'SilentlyContinue'
 
+# 1. Helper to permanently write a directory to the Windows Registry System PATH
+Function Add-PermanentMachinePath {
+    param([string]$Dir)
+    if (-not (Test-Path $Dir)) { return }
+    
+    $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    
+    # Only add it if it doesn't already exist in the permanent registry
+    if ($machinePath -notmatch [regex]::Escape($Dir)) {
+        $newPath = $machinePath
+        if (-not $newPath.EndsWith(";")) { $newPath += ";" }
+        $newPath += $Dir
+        
+        [System.Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+        Write-Output "Permanently secured system PATH: $Dir"
+    }
+}
+
 Function Update-SessionPath {
-    # 1. Pull the latest PATH straight from the Windows Registry
+    # Pull the latest PATH straight from the Windows Registry for the active session
     $machinePath = [System.Environment]::GetEnvironmentVariable("Path","Machine")
     $userPath    = [System.Environment]::GetEnvironmentVariable("Path","User")
     
-    # 2. Define the exact locations where our software installs
+    # Define the exact locations where our software installs
     $hardcodedPaths = @(
         "C:\ProgramData\chocolatey\bin",
         "C:\Python311",
@@ -27,7 +45,7 @@ Function Update-SessionPath {
     
     $newPath = "$machinePath;$userPath"
     
-    # 3. Force these paths into the current session if they exist
+    # Force these paths into the current session if they exist
     foreach ($p in $hardcodedPaths) {
         if ($newPath -notmatch [regex]::Escape($p) -and (Test-Path $p)) {
             $newPath += ";$p"
@@ -53,10 +71,17 @@ switch ($Step) {
     "python" { 
         Write-Output "Installing Python 3.11..."
         choco install python311 -y --force --force-dependencies --no-progress --acceptlicense 
+        
+        Write-Output "Forcing Python directories into permanent System PATH..."
+        Add-PermanentMachinePath "C:\Python311"
+        Add-PermanentMachinePath "C:\Python311\Scripts"
     }
     "xampp" { 
         Write-Output "Installing XAMPP (PHP 8.1.25)..."
         choco install xampp-81 -y --force --force-dependencies --no-progress --acceptlicense 
+        
+        Write-Output "Forcing PHP directory into permanent System PATH..."
+        Add-PermanentMachinePath "C:\xampp\php"
     }
     "git" { 
         Write-Output "Installing Git..."
@@ -71,7 +96,7 @@ switch ($Step) {
         choco install composer -y --force --force-dependencies --no-progress --acceptlicense 
     }
     "pip" {
-        # Force a path update right before we try to use Python
+        # Force a session path update right before we try to use Python
         Update-SessionPath 
         Write-Output "Checking Python accessibility..."
         
@@ -85,7 +110,7 @@ switch ($Step) {
         }
     }
     "profile" {
-        # Force a path update right before we try to use VS Code
+        # Force a session path update right before we try to use VS Code
         Update-SessionPath 
         
         if (Test-Path $ProfilePath) {
