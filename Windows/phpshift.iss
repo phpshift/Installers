@@ -14,19 +14,18 @@ PrivilegesRequired=admin
 LicenseFile=terms.txt
 
 [Files]
-Source: "installer.ps1"; DestDir: "{tmp}"; Flags: ignoreversion
-Source: "vsetup.code-profile"; DestDir: "{tmp}"; Flags: ignoreversion
+Source: "core-installer.ps1"; DestDir: "{tmp}"; Flags: ignoreversion
+; Extract the profile permanently to the install directory so VS Code has time to read it
+Source: "vsetup.code-profile"; DestDir: "{app}"; Flags: ignoreversion
 
 [Code]
 var
   LogMemo: TNewMemo;
 
-{ 1. Create the integrated terminal UI }
 procedure InitializeWizard;
 begin
   LogMemo := TNewMemo.Create(WizardForm);
   LogMemo.Parent := WizardForm.InstallingPage;
-  { Position it right beneath the progress bar }
   LogMemo.SetBounds(0, WizardForm.ProgressGauge.Top + WizardForm.ProgressGauge.Height + 15, 
                     WizardForm.InstallingPage.ClientWidth, 
                     WizardForm.InstallingPage.ClientHeight - (WizardForm.ProgressGauge.Top + WizardForm.ProgressGauge.Height + 15));
@@ -38,7 +37,6 @@ begin
   LogMemo.WordWrap := True;
 end;
 
-{ 2. The engine that catches PowerShell output and feeds it to the UI }
 procedure RunPowerShellStep(StepName: String; StatusText: String);
 var
   WshShell, WshExec: Variant;
@@ -51,52 +49,46 @@ begin
   LogMemo.Lines.Add('>>> ' + StatusText);
   LogMemo.Lines.Add('==================================================');
 
-  { Command forces standard error (2) into standard output (1) to catch all logs }
-  Cmd := 'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + ExpandConstant('{tmp}\installer.ps1') + '" -Step "' + StepName + '" -ProfilePath "' + ExpandConstant('{tmp}\vsetup.code-profile') + '"';
+  Cmd := 'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + ExpandConstant('{tmp}\core-installer.ps1') + '" -Step "' + StepName + '"';
 
   try
     WshShell := CreateOleObject('WScript.Shell');
     WshExec := WshShell.Exec('cmd.exe /c "' + Cmd + ' 2>&1"');
 
-    { Read stream while the process is actively running }
     while WshExec.Status = 0 do
     begin
       while not WshExec.StdOut.AtEndOfStream do
       begin
         OutputLine := WshExec.StdOut.ReadLine;
         LogMemo.Lines.Add(OutputLine);
-        { Auto-scroll to the bottom of the log box }
         SendMessage(LogMemo.Handle, 277, 7, 0); 
       end;
-      { Keep the main setup window from freezing }
       Sleep(50);
       WizardForm.Refresh;
     end;
 
-    { Catch any leftover output after process terminates }
     while not WshExec.StdOut.AtEndOfStream do
     begin
       OutputLine := WshExec.StdOut.ReadLine;
       LogMemo.Lines.Add(OutputLine);
       SendMessage(LogMemo.Handle, 277, 7, 0);
     end;
-
   except
     LogMemo.Lines.Add('CRITICAL ERROR: Failed to execute ' + StepName);
   end;
 end;
 
-{ 3. The Orchestrator - Triggers during the actual installation phase }
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ProgressIncr: Integer;
+  CodePath: String;
+  ResultCode: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
-    { Reset progress bar and set to increment in 8 chunks }
     WizardForm.ProgressGauge.Position := 0;
     WizardForm.ProgressGauge.Max := 100;
-    ProgressIncr := 12; 
+    ProgressIncr := 14; 
 
     RunPowerShellStep('choco-init', 'Initializing Package Manager...');
     WizardForm.ProgressGauge.Position := WizardForm.ProgressGauge.Position + ProgressIncr;
@@ -117,9 +109,37 @@ begin
     WizardForm.ProgressGauge.Position := WizardForm.ProgressGauge.Position + ProgressIncr;
 
     RunPowerShellStep('pip', 'Installing PHPShift Framework Modules...');
-    WizardForm.ProgressGauge.Position := WizardForm.ProgressGauge.Position + ProgressIncr;
+    WizardForm.ProgressGauge.Position := 95;
 
-    RunPowerShellStep('profile', 'Applying Custom Development Profile...');
+    { ------------------------------------------------------------------------- }
+    { VS CODE PROFILE IMPORT (RUN AS NORMAL USER TO BYPASS ADMIN RESTRICTIONS) }
+    { ------------------------------------------------------------------------- }
+    WizardForm.StatusLabel.Caption := 'Applying Custom Development Profile...';
+    LogMemo.Lines.Add('');
+    LogMemo.Lines.Add('==================================================');
+    LogMemo.Lines.Add('>>> Applying Custom Development Profile...');
+    LogMemo.Lines.Add('==================================================');
+
+    { Locate the absolute path to the newly installed VS Code }
+    CodePath := ExpandConstant('{pf64}\Microsoft VS Code\bin\code.cmd');
+    if not FileExists(CodePath) then
+      CodePath := ExpandConstant('{pf32}\Microsoft VS Code\bin\code.cmd');
+    if not FileExists(CodePath) then
+      CodePath := ExpandConstant('{localappdata}\Programs\Microsoft VS Code\bin\code.cmd');
+
+    if FileExists(CodePath) then
+    begin
+      { ExecAsOriginalUser strips the Administrator privileges away just for this command so VS Code accepts it }
+      if ExecAsOriginalUser(CodePath, '--install-profile "' + ExpandConstant('{app}\vsetup.code-profile') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+        LogMemo.Lines.Add('VS Code profile command issued successfully.')
+      else
+        LogMemo.Lines.Add('WARNING: Profile import command failed to execute.');
+    end
+    else
+    begin
+      LogMemo.Lines.Add('CRITICAL ERROR: Could not locate VS Code executable.');
+    end;
+
     WizardForm.ProgressGauge.Position := 100;
 
     LogMemo.Lines.Add('');
@@ -128,7 +148,6 @@ begin
     LogMemo.Lines.Add('==================================================');
     WizardForm.StatusLabel.Caption := 'Installation Complete!';
     
-    { Give the user 1.5 seconds to see 100% completion before moving to finish screen }
     Sleep(1500); 
   end;
 end;
