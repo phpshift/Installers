@@ -9,7 +9,11 @@ $ProgressPreference = 'SilentlyContinue'
 # 1. Helper to permanently write a directory to the Windows Registry System PATH
 Function Add-PermanentMachinePath {
     param([string]$Dir)
-    if (-not (Test-Path $Dir)) { return }
+    
+    if (-not (Test-Path $Dir)) { 
+        Write-Output "WARNING: Directory not found, could not add to permanent PATH: $Dir"
+        return 
+    }
     
     $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
     
@@ -20,6 +24,8 @@ Function Add-PermanentMachinePath {
         
         [System.Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
         Write-Output "Permanently secured system PATH: $Dir"
+    } else {
+        Write-Output "Directory already exists in system PATH: $Dir"
     }
 }
 
@@ -64,14 +70,17 @@ switch ($Step) {
     }
     "python" { 
         Write-Output "Installing Python 3.11..."
-        choco install python311 -y --force --force-dependencies --no-progress --acceptlicense 
+        # Explicitly force the target directory so our PATH variables never fail
+        choco install python311 -y --force --force-dependencies --no-progress --acceptlicense --override-arguments --install-arguments="/quiet InstallAllUsers=1 PrependPath=1 TargetDir=C:\Python311"
+        
         Write-Output "Forcing Python directories into permanent System PATH..."
         Add-PermanentMachinePath "C:\Python311"
         Add-PermanentMachinePath "C:\Python311\Scripts"
     }
     "xampp" { 
         Write-Output "Installing XAMPP (PHP 8.1.25)..."
-        choco install xampp-81 -y --force --force-dependencies --no-progress --acceptlicense 
+        choco install xampp-81 -y --force --force-dependencies --no-progress --acceptlicense --override-arguments --install-arguments="--mode unattended --unattendedmodeui minimal"
+        
         Write-Output "Forcing PHP directory into permanent System PATH..."
         Add-PermanentMachinePath "C:\xampp\php"
     }
@@ -81,7 +90,7 @@ switch ($Step) {
     }
     "vscode" { 
         Write-Output "Installing Visual Studio Code..."
-        choco install vscode -y --force --force-dependencies --no-progress --acceptlicense 
+        choco install vscode -y --force --force-dependencies --no-progress --acceptlicense --override-arguments --install-arguments="/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /MERGETASKS=!runcode,!desktopicon"
     }
     "composer" { 
         Write-Output "Installing Composer..."
