@@ -20,38 +20,41 @@ switch ($Step) {
             Write-Output "Downloading and installing Chocolatey Package Manager..."
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        }
-        else {
+        } else {
             Write-Output "Chocolatey is already installed. Proceeding..."
         }
     }
     "python" { 
-        choco install python311 -y --no-progress --limit-output --acceptlicense 
+        Write-Output "Forcing Python 3.11 installation..."
+        choco install python311 -y --force --no-progress --limit-output --acceptlicense 
     }
     "xampp" { 
-        choco install xampp-81 -y --no-progress --limit-output --acceptlicense 
+        Write-Output "Forcing XAMPP installation..."
+        choco install xampp-81 -y --force --no-progress --limit-output --acceptlicense 
     }
     "git" { 
-        choco install git -y --no-progress --limit-output --acceptlicense 
+        Write-Output "Forcing Git installation..."
+        choco install git -y --force --no-progress --limit-output --acceptlicense 
     }
     "vscode" { 
-        choco install vscode -y --no-progress --limit-output --acceptlicense 
+        Write-Output "Forcing VS Code installation..."
+        choco install vscode -y --force --no-progress --limit-output --acceptlicense 
     }
     "composer" { 
-        choco install composer -y --no-progress --limit-output --acceptlicense 
+        Write-Output "Forcing Composer installation..."
+        choco install composer -y --force --no-progress --limit-output --acceptlicense 
     }
     "pip" {
         Write-Output "Upgrading PIP..."
-        python -m pip install --upgrade pip --disable-pip-version-check
+        python -m pip install --upgrade pip --force-reinstall --disable-pip-version-check
         Write-Output "Installing PHPShift Modules..."
-        python -m pip install clight phpshift --disable-pip-version-check
+        python -m pip install clight phpshift --force-reinstall --disable-pip-version-check
     }
     "profile" {
         if (Test-Path $ProfilePath) {
             Write-Output "Applying custom VS Code settings..."
             code --install-profile $ProfilePath
-        }
-        else {
+        } else {
             Write-Output "Warning: Profile file missing!"
         }
     }
