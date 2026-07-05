@@ -1,0 +1,11 @@
+PHPShift - World's First AI-Powered Full-Stack Framework
+
+By continuing with this installation, you accept the project terms outlined in the following documents:
+
+1. License: https://github.com/phpshift/PHPShift/blob/main/LICENSE
+2. Code of Conduct: https://github.com/phpshift/PHPShift/blob/main/CODE_OF_CONDUCT.md
+3. Terms of Use: https://github.com/phpshift/PHPShift/blob/main/TERMS_OF_USE.md
+4. Trademarks: https://github.com/phpshift/PHPShift/blob/main/TRADEMARKS.md
+5. Disclaimer: https://github.com/phpshift/PHPShift/blob/main/DISCLAIMER.md
+6. Contributing: https://github.com/phpshift/PHPShift/blob/main/CONTRIBUTING.md
+7. Security: https://github.com/phpshift/PHPShift/blob/main/SECURITY.md
