@@ -14,7 +14,7 @@ PrivilegesRequired=admin
 LicenseFile=terms.txt
 
 [Files]
-Source: "core-installer.ps1"; DestDir: "{tmp}"; Flags: ignoreversion
+Source: "installer.ps1"; DestDir: "{tmp}"; Flags: ignoreversion
 ; Extract the profile permanently to the install directory so VS Code has time to read it
 Source: "vsetup.code-profile"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -49,7 +49,7 @@ begin
   LogMemo.Lines.Add('>>> ' + StatusText);
   LogMemo.Lines.Add('==================================================');
 
-  Cmd := 'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + ExpandConstant('{tmp}\core-installer.ps1') + '" -Step "' + StepName + '"';
+  Cmd := 'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + ExpandConstant('{tmp}\installer.ps1') + '" -Step "' + StepName + '"';
 
   try
     WshShell := CreateOleObject('WScript.Shell');
