@@ -1,6 +1,5 @@
 param(
-    [string]$Step,
-    [string]$ProfilePath
+    [string]$Step
 )
 
 # STRICT UNATTENDED MODE
@@ -14,7 +13,6 @@ Function Add-PermanentMachinePath {
     
     $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
     
-    # Only add it if it doesn't already exist in the permanent registry
     if ($machinePath -notmatch [regex]::Escape($Dir)) {
         $newPath = $machinePath
         if (-not $newPath.EndsWith(";")) { $newPath += ";" }
@@ -26,11 +24,9 @@ Function Add-PermanentMachinePath {
 }
 
 Function Update-SessionPath {
-    # Pull the latest PATH straight from the Windows Registry for the active session
     $machinePath = [System.Environment]::GetEnvironmentVariable("Path","Machine")
     $userPath    = [System.Environment]::GetEnvironmentVariable("Path","User")
     
-    # Define the exact locations where our software installs
     $hardcodedPaths = @(
         "C:\ProgramData\chocolatey\bin",
         "C:\Python311",
@@ -45,7 +41,6 @@ Function Update-SessionPath {
     
     $newPath = "$machinePath;$userPath"
     
-    # Force these paths into the current session if they exist
     foreach ($p in $hardcodedPaths) {
         if ($newPath -notmatch [regex]::Escape($p) -and (Test-Path $p)) {
             $newPath += ";$p"
@@ -55,7 +50,6 @@ Function Update-SessionPath {
     $env:Path = $newPath
 }
 
-# Run path update at the start of every step
 Update-SessionPath
 
 switch ($Step) {
@@ -71,7 +65,6 @@ switch ($Step) {
     "python" { 
         Write-Output "Installing Python 3.11..."
         choco install python311 -y --force --force-dependencies --no-progress --acceptlicense 
-        
         Write-Output "Forcing Python directories into permanent System PATH..."
         Add-PermanentMachinePath "C:\Python311"
         Add-PermanentMachinePath "C:\Python311\Scripts"
@@ -79,7 +72,6 @@ switch ($Step) {
     "xampp" { 
         Write-Output "Installing XAMPP (PHP 8.1.25)..."
         choco install xampp-81 -y --force --force-dependencies --no-progress --acceptlicense 
-        
         Write-Output "Forcing PHP directory into permanent System PATH..."
         Add-PermanentMachinePath "C:\xampp\php"
     }
@@ -96,7 +88,6 @@ switch ($Step) {
         choco install composer -y --force --force-dependencies --no-progress --acceptlicense 
     }
     "pip" {
-        # Force a session path update right before we try to use Python
         Update-SessionPath 
         Write-Output "Checking Python accessibility..."
         
@@ -107,22 +98,6 @@ switch ($Step) {
             python -m pip install clight phpshift --force-reinstall --disable-pip-version-check
         } else {
             Write-Output "CRITICAL ERROR: Python is not accessible in the current environment path."
-        }
-    }
-    "profile" {
-        # Force a session path update right before we try to use VS Code
-        Update-SessionPath 
-        
-        if (Test-Path $ProfilePath) {
-            Write-Output "Checking VS Code accessibility..."
-            if (Get-Command code -ErrorAction SilentlyContinue) {
-                Write-Output "Applying custom VS Code settings..."
-                code --install-profile $ProfilePath
-            } else {
-                Write-Output "CRITICAL ERROR: VS Code ('code') is not accessible in the current environment path."
-            }
-        } else {
-            Write-Output "CRITICAL ERROR: Profile file missing at $ProfilePath"
         }
     }
 }
