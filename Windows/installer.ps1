@@ -8,10 +8,36 @@ $ConfirmPreference = 'None'
 $ProgressPreference = 'SilentlyContinue'
 
 Function Update-SessionPath {
-    # Dynamically pull the latest PATH straight from the registry to ensure pip/choco/code are always found
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User") + ";C:\xampp\php;C:\tools\xampp\php"
+    # 1. Pull the latest PATH straight from the Windows Registry
+    $machinePath = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+    $userPath    = [System.Environment]::GetEnvironmentVariable("Path","User")
+    
+    # 2. Define the exact locations where our software installs
+    $hardcodedPaths = @(
+        "C:\ProgramData\chocolatey\bin",
+        "C:\Python311",
+        "C:\Python311\Scripts",
+        "C:\Program Files\Git\cmd",
+        "C:\Program Files\Microsoft VS Code\bin",
+        "$env:USERPROFILE\AppData\Local\Programs\Microsoft VS Code\bin",
+        "C:\xampp\php",
+        "C:\tools\xampp\php",
+        "$env:ProgramData\ComposerSetup\bin"
+    )
+    
+    $newPath = "$machinePath;$userPath"
+    
+    # 3. Force these paths into the current session if they exist
+    foreach ($p in $hardcodedPaths) {
+        if ($newPath -notmatch [regex]::Escape($p) -and (Test-Path $p)) {
+            $newPath += ";$p"
+        }
+    }
+    
+    $env:Path = $newPath
 }
 
+# Run path update at the start of every step
 Update-SessionPath
 
 switch ($Step) {
@@ -25,37 +51,53 @@ switch ($Step) {
         }
     }
     "python" { 
-        Write-Output "Forcing Python 3.11 installation..."
-        choco install python311 -y --force --no-progress --limit-output --acceptlicense 
+        Write-Output "Installing Python 3.11..."
+        choco install python311 -y --force --force-dependencies --no-progress --acceptlicense 
     }
     "xampp" { 
-        Write-Output "Forcing XAMPP installation..."
-        choco install xampp-81 -y --force --no-progress --limit-output --acceptlicense 
+        Write-Output "Installing XAMPP (PHP 8.1.25)..."
+        choco install xampp-81 -y --force --force-dependencies --no-progress --acceptlicense 
     }
     "git" { 
-        Write-Output "Forcing Git installation..."
-        choco install git -y --force --no-progress --limit-output --acceptlicense 
+        Write-Output "Installing Git..."
+        choco install git -y --force --force-dependencies --no-progress --acceptlicense 
     }
     "vscode" { 
-        Write-Output "Forcing VS Code installation..."
-        choco install vscode -y --force --no-progress --limit-output --acceptlicense 
+        Write-Output "Installing Visual Studio Code..."
+        choco install vscode -y --force --force-dependencies --no-progress --acceptlicense 
     }
     "composer" { 
-        Write-Output "Forcing Composer installation..."
-        choco install composer -y --force --no-progress --limit-output --acceptlicense 
+        Write-Output "Installing Composer..."
+        choco install composer -y --force --force-dependencies --no-progress --acceptlicense 
     }
     "pip" {
-        Write-Output "Upgrading PIP..."
-        python -m pip install --upgrade pip --force-reinstall --disable-pip-version-check
-        Write-Output "Installing PHPShift Modules..."
-        python -m pip install clight phpshift --force-reinstall --disable-pip-version-check
+        # Force a path update right before we try to use Python
+        Update-SessionPath 
+        Write-Output "Checking Python accessibility..."
+        
+        if (Get-Command python -ErrorAction SilentlyContinue) {
+            Write-Output "Upgrading PIP..."
+            python -m pip install --upgrade pip --force-reinstall --disable-pip-version-check
+            Write-Output "Installing PHPShift Modules..."
+            python -m pip install clight phpshift --force-reinstall --disable-pip-version-check
+        } else {
+            Write-Output "CRITICAL ERROR: Python is not accessible in the current environment path."
+        }
     }
     "profile" {
+        # Force a path update right before we try to use VS Code
+        Update-SessionPath 
+        
         if (Test-Path $ProfilePath) {
-            Write-Output "Applying custom VS Code settings..."
-            code --install-profile $ProfilePath
+            Write-Output "Checking VS Code accessibility..."
+            if (Get-Command code -ErrorAction SilentlyContinue) {
+                Write-Output "Applying custom VS Code settings..."
+                code --install-profile $ProfilePath
+            } else {
+                Write-Output "CRITICAL ERROR: VS Code ('code') is not accessible in the current environment path."
+            }
         } else {
-            Write-Output "Warning: Profile file missing!"
+            Write-Output "CRITICAL ERROR: Profile file missing at $ProfilePath"
         }
     }
 }
