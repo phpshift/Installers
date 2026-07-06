@@ -60,12 +60,31 @@ Update-SessionPath
 
 switch ($Step) {
     "choco-init" {
-        if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+        # Check both the command and the physical file path
+        if (-not (Get-Command choco -ErrorAction SilentlyContinue) -and -not (Test-Path "C:\ProgramData\chocolatey\bin\choco.exe")) {
             Write-Output "Downloading and installing Chocolatey Package Manager..."
+            
+            # Force TLS 1.2 and bypass execution policy for this specific process
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            
             Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+            
+            Write-Output "Forcing Chocolatey into permanent System PATH..."
+            Add-PermanentMachinePath "C:\ProgramData\chocolatey\bin"
+            
+            # Refresh session to ensure the next steps can 'see' choco
+            Update-SessionPath
+            
+            if (-not (Test-Path "C:\ProgramData\chocolatey\bin\choco.exe")) {
+                Write-Output "CRITICAL ERROR: Chocolatey installation failed. Check internet connection and firewall."
+                exit 1
+            }
         } else {
             Write-Output "Chocolatey is already installed. Proceeding..."
+            # Ensure it's in the PATH even if it was pre-installed
+            Add-PermanentMachinePath "C:\ProgramData\chocolatey\bin"
+            Update-SessionPath
         }
     }
     "python" { 
@@ -107,6 +126,7 @@ switch ($Step) {
             python -m pip install clight phpshift --force-reinstall --disable-pip-version-check
         } else {
             Write-Output "CRITICAL ERROR: Python is not accessible in the current environment path."
+            exit 1
         }
     }
 }
