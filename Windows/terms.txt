@@ -1,11 +1,20 @@
 PHPShift - World's First AI-Powered Full-Stack Framework
 
-By continuing with this installation, you accept the project terms outlined in the following documents:
+This installer installs the following components:
+- Chocolatey package manager (if not already present)
+- Python 3.11, installed to `C:\Python311` and added to system PATH
+- XAMPP 8.1.25, including PHP 8.1.25, with PHP added to system PATH
+- Git
+- Visual Studio Code
+- Composer
+- Python packages `clight` and `phpshift` via `pip`
+- A VS Code custom development profile
 
-1. License: https://github.com/phpshift/PHPShift/blob/main/LICENSE
-2. Code of Conduct: https://github.com/phpshift/PHPShift/blob/main/CODE_OF_CONDUCT.md
-3. Terms of Use: https://github.com/phpshift/PHPShift/blob/main/TERMS_OF_USE.md
-4. Trademarks: https://github.com/phpshift/PHPShift/blob/main/TRADEMARKS.md
-5. Disclaimer: https://github.com/phpshift/PHPShift/blob/main/DISCLAIMER.md
-6. Contributing: https://github.com/phpshift/PHPShift/blob/main/CONTRIBUTING.md
-7. Security: https://github.com/phpshift/PHPShift/blob/main/SECURITY.md
+By continuing with this installation, you accept the project terms outlined in the following documents:
+- License: https://github.com/phpshift/PHPShift/blob/main/LICENSE
+- Code of Conduct: https://github.com/phpshift/PHPShift/blob/main/CODE_OF_CONDUCT.md
+- Terms of Use: https://github.com/phpshift/PHPShift/blob/main/TERMS_OF_USE.md
+- Trademarks: https://github.com/phpshift/PHPShift/blob/main/TRADEMARKS.md
+- Disclaimer: https://github.com/phpshift/PHPShift/blob/main/DISCLAIMER.md
+- Contributing: https://github.com/phpshift/PHPShift/blob/main/CONTRIBUTING.md
+- Security: https://github.com/phpshift/PHPShift/blob/main/SECURITY.md
